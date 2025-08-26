@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prediction App</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="container">
+    <h1>Health Prediction App</h1>
+
+    <form method="POST" action="/">
+        {% for feat in features %}
+        <div class="form-row">
+            <label for="{{ feat }}">{{ feat }}</label>
+            <input type="number" step="any" name="{{ feat }}" id="{{ feat }}" required>
+        </div>
+        {% endfor %}
+
+        <div class="form-row">
+            <label for="model">Model</label>
+            <select name="model" id="model">
+                <option value="logistic_regression">Logistic Regression</option>
+                <option value="decision_tree">Decision Tree</option>
+                <option value="random_forest">Random Forest</option>
+                <option value="gradient_boosting">Gradient Boosting</option>
+                <option value="svm">Support Vector Machine</option>
+                <option value="knn">K-Nearest Neighbors</option>
+            </select>
+        </div>
+
+        <button type="submit">Predict</button>
+    </form>
+
+    {% if prediction is not none %}
+    <div class="result-box">
+        <h2>Prediction Result</h2>
+        <p><strong>Prediction:</strong> {{ prediction }}</p>
+        <p><strong>Probability of {{ target }}:</strong> {{ probability }}</p>
+        <p><strong>Model Used:</strong> {{ selected_model }}</p>
+    </div>
+    {% endif %}
+
+    <p style="text-align:center; margin-top:20px;">
+        <a href="/setup">⚙ Change Dataset / Features</a> | 
+        <a href="/dashboard" class="dashboard-link">📊 View Dashboard</a>
+    </p>
+
+</div>
+</body>
+</html>

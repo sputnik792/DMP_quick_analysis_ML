@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Model Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script>
+        // Show loading spinner before page content is fully ready
+        document.addEventListener("DOMContentLoaded", function() {
+            const loader = document.getElementById("loader");
+            const content = document.getElementById("content");
+            loader.style.display = "none";
+            content.style.display = "block";
+        });
+    </script>
+</head>
+<body>
+<div id="loader" class="loader"></div>
+
+<div id="content" class="container" style="display:none;">
+    <h1>Model Comparison Dashboard</h1>
+
+    {% if results.error %}
+        <p style="color:red; text-align:center;">{{ results.error }}</p>
+    {% else %}
+        <h2>Metrics Table</h2>
+        <table border="1" style="margin:auto; text-align:center;">
+            <tr>
+                <th>Model</th>
+                <th>Accuracy</th>
+                <th>ROC-AUC</th>
+                <th>Dataset</th>
+                <th>Target</th>
+                <th>Features</th>
+            </tr>
+            {% for model, metrics in results.items() %}
+                {% if model not in ["accuracy_plot","roc_plot","conf_matrices"] %}
+                <tr>
+                    <td>{{ model }}</td>
+                    <td>{{ metrics.accuracy }}</td>
+                    <td>{{ metrics.roc_auc }}</td>
+                    <td>{{ metrics.dataset }}</td>
+                    <td>{{ metrics.target }}</td>
+                    <td>{{ metrics.features }}</td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </table>
+
+        <h2>Accuracy Comparison</h2>
+        <img src="data:image/png;base64,{{ results.accuracy_plot }}" 
+             alt="Accuracy Plot" class="fade-chart">
+
+        <h2>ROC-AUC Comparison</h2>
+        <img src="data:image/png;base64,{{ results.roc_plot }}" 
+             alt="ROC Plot" class="fade-chart">
+
+        <h2>Confusion Matrices</h2>
+        {% for model, img in results.conf_matrices.items() %}
+            <h3>{{ model }}</h3>
+            <img src="data:image/png;base64,{{ img }}" 
+                 alt="Confusion Matrix {{ model }}" class="fade-chart">
+        {% endfor %}
+    {% endif %}
+
+    <p style="text-align:center; margin-top:20px;">
+        <a href="/">⬅ Back to Prediction</a>
+    </p>
+</div>
+</body>
+</html>

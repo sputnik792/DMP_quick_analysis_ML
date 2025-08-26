@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Setup Dataset</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="container">
+    <h1>Setup Dataset</h1>
+
+    <form method="POST" action="/setup">
+        <label>Select Dataset:</label>
+        <select name="dataset" onchange="location = '/setup?dataset=' + this.value;">
+            <option value="">--Choose--</option>
+            {% for ds in datasets %}
+                <option value="{{ ds }}" {% if ds == selected %}selected{% endif %}>{{ ds }}</option>
+            {% endfor %}
+        </select><br><br>
+
+        {% if columns %}
+            <h3>Select Features</h3>
+            <div class="checkbox-group">
+                {% for col in columns %}
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="{{ col }}" name="features" value="{{ col }}">
+                        <label for="{{ col }}">{{ col }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <h3>Select Target</h3>
+            <select name="target">
+                {% for col in columns %}
+                    <option value="{{ col }}">{{ col }}</option>
+                {% endfor %}
+            </select><br><br>
+
+            <button type="submit">Train Models</button>
+        {% endif %}
+    </form>
+</div>
+</body>
+</html>
