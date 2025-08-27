@@ -1,128 +1,118 @@
-import os
-import pandas as pd
-import pickle
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, GradientBoostingClassifier, GradientBoostingRegressor
-from sklearn.svm import SVC, SVR
-from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from flask import Flask, request, render_template, redirect, url_for
+from trainer import get_datasets, load_dataset, train_models, MODEL_DIR
+from evaluation import evaluate_models
+import pickle, os, numpy as np
 
-# === Base directories (always relative to this project folder) ===
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATASET_DIR = os.path.join(BASE_DIR, "datasets")
-MODEL_DIR = os.path.join(BASE_DIR, "models")
+app = Flask(__name__)
 
-# === Classification Models ===
-CLASSIFICATION_MODELS = {
-    "logistic_regression": LogisticRegression(max_iter=500),
-    "decision_tree_clf": DecisionTreeClassifier(),
-    "random_forest_clf": RandomForestClassifier(n_estimators=100),
-    "gradient_boosting_clf": GradientBoostingClassifier(),
-    "svm_clf": SVC(probability=True),
-    "knn_clf": KNeighborsClassifier()
-}
-
-# === Regression Models ===
-REGRESSION_MODELS = {
-    "linear_regression": LinearRegression(),
-    "decision_tree_reg": DecisionTreeRegressor(),
-    "random_forest_reg": RandomForestRegressor(n_estimators=100),
-    "gradient_boosting_reg": GradientBoostingRegressor(),
-    "svr": SVR(),
-    "knn_reg": KNeighborsRegressor()
-}
-
-
-# === Dataset Helpers ===
-def get_datasets():
-    """Return list of available CSVs in datasets folder."""
-    if not os.path.exists(DATASET_DIR):
-        os.makedirs(DATASET_DIR)
-    return [f for f in os.listdir(DATASET_DIR) if f.endswith(".csv")]
-
-def load_dataset(filename):
-    """Load a dataset from datasets/"""
-    path = os.path.join(DATASET_DIR, filename)
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Dataset not found: {path}")
-    return pd.read_csv(path)
-
-
-# === Training ===
-def train_models(dataset_file, features, target, mode="classification", selected_models=None):
-    """
-    Train models on a dataset with selected features and target.
-    - dataset_file: CSV filename in datasets/
-    - features: list of columns to use as X
-    - target: column to predict (for regression or classification)
-    - mode: "classification" or "regression"
-    - selected_models: list of model keys to train (if None, train all in that category)
-    """
-    try:
-        if not features or not target:
-            print("No features or target provided. Aborting training.")
-            return False
-
-        df = load_dataset(dataset_file)
-
-        if target not in df.columns:
-            print(f"Target column {target} not found in dataset.")
-            return False
-
-        X = df[features]
-        y = df[target]
-
-        # Split dataset
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
-
-        if not os.path.exists(MODEL_DIR):
-            os.makedirs(MODEL_DIR)
-
-        # Choose models based on mode
-        models = CLASSIFICATION_MODELS if mode == "classification" else REGRESSION_MODELS
-
-        if selected_models:
-            models = {k: v for k, v in models.items() if k in selected_models}
-
-        saved_models = []
-        for name, model in models.items():
-            try:
-                model.fit(X_train, y_train)
-                with open(os.path.join(MODEL_DIR, f"{name}.pkl"), "wb") as f:
-                    pickle.dump({
-                        "model": model,
-                        "features": features,
-                        "target": target,
-                        "dataset": dataset_file,
-                        "mode": mode,
-                        "name": name
-                    }, f)
-                saved_models.append(name)
-            except Exception as e:
-                print(f"Failed to train {name}: {e}")
-
-        if saved_models:
-            print(f"Successfully trained and saved: {saved_models}")
-            return True
-        else:
-            print("No models were trained successfully.")
-            return False
-
-    except Exception as e:
-        print(f"Training failed with error: {e}")
-        return False
-
-
-# === Standalone usage (manual test) ===
-if __name__ == "__main__":
+@app.route("/setup", methods=["GET", "POST"])
+def setup():
     datasets = get_datasets()
-    if datasets:
-        df = load_dataset(datasets[0])
-        features = df.columns[:-1].tolist()
-        target = df.columns[-1]
-        train_models(datasets[0], features, target, mode="classification")
+    dataset_file = request.args.get("dataset")
+    columns = []
+
+    if request.method == "POST":
+        dataset_file = request.form.get("dataset") or dataset_file
+        features = request.form.getlist("features")
+        target = request.form.get("target")
+        mode = request.form.get("mode")
+        selected_models = request.form.getlist("models")
+
+        success = train_models(dataset_file, features, target, mode=mode, selected_models=selected_models)
+        if success:
+            return redirect(url_for("index"))
+
+        return render_template("setup.html", datasets=datasets, columns=columns,
+                               selected=dataset_file, error="⚠ Training failed. Please check inputs.")
+
+    if dataset_file:
+        df = load_dataset(dataset_file)
+        columns = df.columns.tolist()
+
+    return render_template("setup.html", datasets=datasets, columns=columns, selected=dataset_file)
+
+
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    example_model = None
+    features, target, mode = [], None, "classification"
+    model_list = []
+
+    # ✅ Load metadata from any trained model
+    if os.path.exists(MODEL_DIR) and os.listdir(MODEL_DIR):
+        for file in os.listdir(MODEL_DIR):
+            if not file.endswith(".pkl"):
+                continue
+            with open(os.path.join(MODEL_DIR, file), "rb") as f:
+                example_model = pickle.load(f)
+            break
+
+    if example_model:
+        features = example_model.get("features", [])
+        target = example_model.get("target")
+        mode = example_model.get("mode", "classification")  # default fallback
+        # collect available models dynamically
+        model_list = [f.replace(".pkl", "") for f in os.listdir(MODEL_DIR) if f.endswith(".pkl")]
     else:
-        print("No datasets available in datasets/")
+        return redirect(url_for("setup"))
+
+    if request.method == "POST":
+        inputs = []
+        try:
+            for feat in features:
+                inputs.append(float(request.form.get(feat)))
+        except Exception:
+            return render_template("index.html",
+                                   features=features,
+                                   target=target,
+                                   models=model_list,
+                                   error="Invalid input values.")
+
+        model_name = request.form.get("model")
+        model_path = os.path.join(MODEL_DIR, f"{model_name}.pkl")
+
+        if not os.path.exists(model_path):
+            return render_template("index.html",
+                                   features=features,
+                                   target=target,
+                                   models=model_list,
+                                   error=f"Model {model_name} not found.")
+
+        with open(model_path, "rb") as f:
+            model_data = pickle.load(f)
+
+        model = model_data["model"]
+        input_data = np.array(inputs).reshape(1, -1)
+
+        prediction = model.predict(input_data)[0]
+
+        probability = None
+        if mode == "classification" and hasattr(model, "predict_proba"):
+            probability = model.predict_proba(input_data)[0][1]
+
+        return render_template("index.html",
+                               prediction=prediction,
+                               probability=(round(float(probability), 3) if probability is not None else None),
+                               selected_model=model_name,
+                               features=features,
+                               target=target,
+                               models=model_list,
+                               mode=mode)
+
+    return render_template("index.html", features=features, target=target, models=model_list, mode=mode)
+
+
+
+@app.route("/dashboard")
+def dashboard():
+    results = evaluate_models()
+    return render_template("dashboard.html", results=results)
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
+@app.route("/")
+def home():
+    return redirect(url_for("setup"))
+
