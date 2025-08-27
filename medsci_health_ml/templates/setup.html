@@ -21,12 +21,16 @@
         <!-- Dataset Selection -->
         <div class="form-row">
             <label for="dataset">Select Dataset</label>
-            <select id="dataset" onchange="window.location='?dataset=' + this.value;">
+            <select name="dataset" id="dataset" onchange="window.location='?dataset=' + this.value;">
                 <option value="">-- Choose Dataset --</option>
                 {% for d in datasets %}
                     <option value="{{ d }}" {% if d == selected %}selected{% endif %}>{{ d }}</option>
                 {% endfor %}
             </select>
+
+            <!-- Keep dataset value when user submits features/models -->
+            <input type="hidden" name="dataset" value="{{ selected }}">
+
         </div>
 
         {% if columns %}
