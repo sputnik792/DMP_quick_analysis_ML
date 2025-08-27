@@ -23,7 +23,7 @@ def setup():
             return redirect(url_for("index"))
 
         return render_template("setup.html", datasets=datasets, columns=columns,
-                               selected=dataset_file, error="⚠ Training failed. Please check inputs.")
+                               selected=dataset_file, error="Training failed. Please check inputs.")
 
     if dataset_file:
         df = load_dataset(dataset_file)
@@ -39,7 +39,7 @@ def index():
     features, target, mode = [], None, "classification"
     model_list = []
 
-    # ✅ Load metadata from any trained model
+    # Load any trained model metadata
     if os.path.exists(MODEL_DIR) and os.listdir(MODEL_DIR):
         for file in os.listdir(MODEL_DIR):
             if not file.endswith(".pkl"):
@@ -51,23 +51,22 @@ def index():
     if example_model:
         features = example_model.get("features", [])
         target = example_model.get("target")
-        mode = example_model.get("mode", "classification")  # default fallback
-        # collect available models dynamically
+        mode = example_model.get("mode", "classification")
         model_list = [f.replace(".pkl", "") for f in os.listdir(MODEL_DIR) if f.endswith(".pkl")]
     else:
         return redirect(url_for("setup"))
 
     if request.method == "POST":
         inputs = []
-        try:
-            for feat in features:
+        for feat in features:
+            try:
                 inputs.append(float(request.form.get(feat)))
-        except Exception:
-            return render_template("index.html",
-                                   features=features,
-                                   target=target,
-                                   models=model_list,
-                                   error="Invalid input values.")
+            except Exception:
+                return render_template("index.html",
+                                       features=features,
+                                       target=target,
+                                       models=model_list,
+                                       error=f"Invalid input for {feat}")
 
         model_name = request.form.get("model")
         model_path = os.path.join(MODEL_DIR, f"{model_name}.pkl")
@@ -86,7 +85,6 @@ def index():
         input_data = np.array(inputs).reshape(1, -1)
 
         prediction = model.predict(input_data)[0]
-
         probability = None
         if mode == "classification" and hasattr(model, "predict_proba"):
             probability = model.predict_proba(input_data)[0][1]
@@ -100,7 +98,12 @@ def index():
                                models=model_list,
                                mode=mode)
 
-    return render_template("index.html", features=features, target=target, models=model_list, mode=mode)
+    return render_template("index.html",
+                           features=features,
+                           target=target,
+                           models=model_list,
+                           mode=mode)
+
 
 
 

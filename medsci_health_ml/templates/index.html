@@ -8,19 +8,21 @@
 <div class="container">
     <h1>DMP Analysis Dashboard</h1>
 
-    <form method="POST" action="/">
+    <form method="POST">
+        <!-- Feature inputs -->
         {% for feat in features %}
         <div class="form-row">
             <label for="{{ feat }}">{{ feat }}</label>
-            <input type="number" step="any" name="{{ feat }}" id="{{ feat }}" required>
+            <input type="text" name="{{ feat }}" id="{{ feat }}" required>
         </div>
         {% endfor %}
 
+        <!-- Model selector -->
         <div class="form-row">
-            <label for="model">Model</label>
+            <label for="model">Choose Model</label>
             <select name="model" id="model">
                 {% for m in models %}
-                    <option value="{{ m }}">{{ m }}</option>
+                    <option value="{{ m }}" {% if m == selected_model %}selected{% endif %}>{{ m }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -28,14 +30,17 @@
         <button type="submit">Predict</button>
     </form>
 
-    {% if prediction is not none %}
+    {% if prediction is defined %}
     <div class="result-box">
-        <h2>Prediction Result</h2>
-        <p><strong>Prediction:</strong> {{ prediction }}</p>
-        <p><strong>Probability of {{ target }}:</strong> {{ probability }}</p>
-        <p><strong>Model Used:</strong> {{ selected_model }}</p>
+        <h3>Prediction Result</h3>
+        <p><b>Prediction:</b> {{ prediction }}</p>
+        {% if probability is not none %}
+            <p><b>Probability:</b> {{ probability }}</p>
+        {% endif %}
+        <p><b>Model Used:</b> {{ selected_model }}</p>
     </div>
     {% endif %}
+
 
     <p style="text-align:center; margin-top:20px;">
         <a href="/setup">⚙ Change Dataset / Features</a> | 
