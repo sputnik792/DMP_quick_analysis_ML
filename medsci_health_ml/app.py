@@ -12,20 +12,18 @@ def setup():
     columns = []
 
     if request.method == "POST":
-        dataset_file = request.form.get("dataset")
+        dataset_file = request.form.get("dataset") or dataset_file
         features = request.form.getlist("features")
         target = request.form.get("target")
+        mode = request.form.get("mode")
+        selected_models = request.form.getlist("models")
 
-        success = train_models(dataset_file, features, target)
+        success = train_models(dataset_file, features, target, mode=mode, selected_models=selected_models)
         if success:
             return redirect(url_for("index"))
-        else:
-            # stay on setup with error
-            return render_template("setup.html",
-                                   datasets=datasets,
-                                   columns=columns,
-                                   selected=dataset_file,
-                                   error="⚠ Training failed. Please check dataset, features, and target.")
+
+        return render_template("setup.html", datasets=datasets, columns=columns,
+                               selected=dataset_file, error="⚠ Training failed. Please check inputs.")
 
     if dataset_file:
         df = load_dataset(dataset_file)
@@ -34,27 +32,30 @@ def setup():
     return render_template("setup.html", datasets=datasets, columns=columns, selected=dataset_file)
 
 
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     example_model = None
-    features, target = [], None
+    features, target, mode = [], None, "classification"
+    model_list = []
 
-    # ✅ Only try loading models if folder exists and has files
+    # ✅ Load metadata from any trained model
     if os.path.exists(MODEL_DIR) and os.listdir(MODEL_DIR):
         for file in os.listdir(MODEL_DIR):
+            if not file.endswith(".pkl"):
+                continue
             with open(os.path.join(MODEL_DIR, file), "rb") as f:
                 example_model = pickle.load(f)
             break
 
     if example_model:
-        features = example_model["features"]
-        target = example_model["target"]
+        features = example_model.get("features", [])
+        target = example_model.get("target")
+        mode = example_model.get("mode", "classification")  # default fallback
+        # collect available models dynamically
+        model_list = [f.replace(".pkl", "") for f in os.listdir(MODEL_DIR) if f.endswith(".pkl")]
     else:
-        # Show helpful message instead of infinite redirect
-        return render_template("index.html",
-                               features=[],
-                               target=None,
-                               error="⚠ No models trained yet. Please go to Setup first.")
+        return redirect(url_for("setup"))
 
     if request.method == "POST":
         inputs = []
@@ -65,7 +66,8 @@ def index():
             return render_template("index.html",
                                    features=features,
                                    target=target,
-                                   error="⚠ Invalid input values.")
+                                   models=model_list,
+                                   error="Invalid input values.")
 
         model_name = request.form.get("model")
         model_path = os.path.join(MODEL_DIR, f"{model_name}.pkl")
@@ -74,7 +76,8 @@ def index():
             return render_template("index.html",
                                    features=features,
                                    target=target,
-                                   error=f"⚠ Model {model_name} not found.")
+                                   models=model_list,
+                                   error=f"Model {model_name} not found.")
 
         with open(model_path, "rb") as f:
             model_data = pickle.load(f)
@@ -83,16 +86,22 @@ def index():
         input_data = np.array(inputs).reshape(1, -1)
 
         prediction = model.predict(input_data)[0]
-        probability = model.predict_proba(input_data)[0][1]
+
+        probability = None
+        if mode == "classification" and hasattr(model, "predict_proba"):
+            probability = model.predict_proba(input_data)[0][1]
 
         return render_template("index.html",
-                               prediction=int(prediction),
-                               probability=round(float(probability), 3),
+                               prediction=prediction,
+                               probability=(round(float(probability), 3) if probability is not None else None),
                                selected_model=model_name,
                                features=features,
-                               target=target)
+                               target=target,
+                               models=model_list,
+                               mode=mode)
 
-    return render_template("index.html", features=features, target=target)
+    return render_template("index.html", features=features, target=target, models=model_list, mode=mode)
+
 
 
 @app.route("/dashboard")
@@ -100,6 +109,9 @@ def dashboard():
     results = evaluate_models()
     return render_template("dashboard.html", results=results)
 
-
 if __name__ == "__main__":
     app.run(debug=True)
+
+@app.route("/")
+def home():
+    return redirect(url_for("setup"))

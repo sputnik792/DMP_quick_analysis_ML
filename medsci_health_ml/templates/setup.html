@@ -1,41 +1,92 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Setup Dataset</title>
+    <title>Setup Training</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script>
+    function toggleModelOptions() {
+        let mode = document.getElementById("mode").value;
+        document.getElementById("classification-options").style.display = 
+            (mode === "classification") ? "block" : "none";
+        document.getElementById("regression-options").style.display = 
+            (mode === "regression") ? "block" : "none";
+    }
+    </script>
 </head>
 <body>
 <div class="container">
-    <h1>Setup Dataset</h1>
+    <h1>Setup Model Training</h1>
 
     <form method="POST" action="/setup">
-        <label>Select Dataset:</label>
-        <select name="dataset" onchange="location = '/setup?dataset=' + this.value;">
-            <option value="">--Choose--</option>
-            {% for ds in datasets %}
-                <option value="{{ ds }}" {% if ds == selected %}selected{% endif %}>{{ ds }}</option>
-            {% endfor %}
-        </select><br><br>
+        <!-- Dataset Selection -->
+        <div class="form-row">
+            <label for="dataset">Select Dataset</label>
+            <select id="dataset" onchange="window.location='?dataset=' + this.value;">
+                <option value="">-- Choose Dataset --</option>
+                {% for d in datasets %}
+                    <option value="{{ d }}" {% if d == selected %}selected{% endif %}>{{ d }}</option>
+                {% endfor %}
+            </select>
+        </div>
 
         {% if columns %}
-            <h3>Select Features</h3>
-            <div class="checkbox-group">
-                {% for col in columns %}
-                    <div class="checkbox-row">
-                        <input type="checkbox" id="{{ col }}" name="features" value="{{ col }}">
-                        <label for="{{ col }}">{{ col }}</label>
-                    </div>
-                {% endfor %}
+        <!-- Feature Selection -->
+        <h3>Select Features</h3>
+        <div class="checkbox-group">
+            {% for col in columns %}
+            <div class="checkbox-row">
+                <input type="checkbox" id="{{ col }}" name="features" value="{{ col }}">
+                <label for="{{ col }}">{{ col }}</label>
             </div>
+            {% endfor %}
+        </div>
 
-            <h3>Select Target</h3>
-            <select name="target">
+        <!-- Target Selection -->
+        <div class="form-row">
+            <label for="target">Select Target</label>
+            <select name="target" id="target">
                 {% for col in columns %}
                     <option value="{{ col }}">{{ col }}</option>
                 {% endfor %}
-            </select><br><br>
+            </select>
+        </div>
 
-            <button type="submit">Train Models</button>
+        <!-- Task Type -->
+        <div class="form-row">
+            <label for="mode">Task Type</label>
+            <select name="mode" id="mode" onchange="toggleModelOptions()">
+                <option value="classification">Classification</option>
+                <option value="regression">Regression</option>
+            </select>
+        </div>
+
+        <!-- Classification Models -->
+        <div id="classification-options">
+            <h3>Classification Models</h3>
+            <div class="checkbox-group">
+                <div class="checkbox-row"><input type="checkbox" name="models" value="logistic_regression"><label>Logistic Regression</label></div>
+                <div class="checkbox-row"><input type="checkbox" name="models" value="decision_tree_clf"><label>Decision Tree (Classifier)</label></div>
+                <div class="checkbox-row"><input type="checkbox" name="models" value="random_forest_clf"><label>Random Forest (Classifier)</label></div>
+                <div class="checkbox-row"><input type="checkbox" name="models" value="gradient_boosting_clf"><label>Gradient Boosting (Classifier)</label></div>
+                <div class="checkbox-row"><input type="checkbox" name="models" value="svm_clf"><label>SVM (Classifier)</label></div>
+                <div class="checkbox-row"><input type="checkbox" name="models" value="knn_clf"><label>KNN (Classifier)</label></div>
+            </div>
+        </div>
+
+        <!-- Regression Models -->
+        <div id="regression-options" style="display:none;">
+            <h3>Regression Models</h3>
+            <div class="checkbox-group">
+                <div class="checkbox-row"><input type="checkbox" name="models" value="linear_regression"><label>Linear Regression</label></div>
+                <div class="checkbox-row"><input type="checkbox" name="models" value="decision_tree_reg"><label>Decision Tree (Regressor)</label></div>
+                <div class="checkbox-row"><input type="checkbox" name="models" value="random_forest_reg"><label>Random Forest (Regressor)</label></div>
+                <div class="checkbox-row"><input type="checkbox" name="models" value="gradient_boosting_reg"><label>Gradient Boosting (Regressor)</label></div>
+                <div class="checkbox-row"><input type="checkbox" name="models" value="svr"><label>SVR</label></div>
+                <div class="checkbox-row"><input type="checkbox" name="models" value="knn_reg"><label>KNN (Regressor)</label></div>
+            </div>
+        </div>
+
+        <button type="submit">Train Models</button>
         {% endif %}
     </form>
 </div>
